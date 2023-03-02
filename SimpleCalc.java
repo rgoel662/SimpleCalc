@@ -42,7 +42,8 @@ public class SimpleCalc {
 			if (expr.equals("h")){
 				printHelp();
 			} else if (!expr.equals("q")){
-				evaluateExpression(utils.tokenizeExpression(expr));
+				double val = evaluateExpression(utils.tokenizeExpression(expr));
+				System.out.println(val);
 			}
 		}while (!expr.equals("q"));
 	}
@@ -66,17 +67,40 @@ public class SimpleCalc {
 		double value = 0;
 		for (int i = 0; i < tokens.size(); i ++){
 			String t = tokens.get(i);
-			if (t.charAt(0) >= '0' && t.charAt(0) <= '9')
+			if (t.charAt(0) >= '0' && t.charAt(0) <= '9'){
 				valueStack.push(Double.parseDouble(t));
-			if (isOperand(t)){
-				if (!operatorStack.isEmpty()){
+			}
+			if (isOperator(t)){
+				if (operatorStack.isEmpty()){
 					operatorStack.push(t);
 					continue;
-				} else if (hasPrecedence(t, operatorStack.peek()){
-					
+				} else if (hasPrecedence(t, operatorStack.peek())){
+					if (t.equals(")"))
+						operatorStack.push(t);
+					else if (t.equals(")")){
+						while (!operatorStack.peek().equals("(")){
+							valueStack.push(executeOperation(valueStack.pop(), valueStack.pop(), operatorStack.pop()));
+						}
+						operatorStack.pop();
+						continue;
+					} else {
+						while (!operatorStack.isEmpty() && hasPrecedence(t, operatorStack.peek()))
+							valueStack.push(executeOperation(valueStack.pop(), valueStack.pop(), operatorStack.pop()));
+						operatorStack.push(t);
+					}
+				} else {
+					operatorStack.push(t);
+				}
+			}
+			System.out.println(operatorStack);
+			System.out.println(valueStack);
+			if (i == tokens.size() -1){
+				while(!operatorStack.isEmpty()){
+					valueStack.push(executeOperation(valueStack.pop(), valueStack.pop(), operatorStack.pop()));
 				}
 			}
 		}
+		value = valueStack.peek();
 		return value;
 	}
 	
@@ -101,11 +125,50 @@ public class SimpleCalc {
 		return true;
 	}
 	
-	private boolean isOperand(String str){
-		if (str.charAt(0) == '+' || str.charAt(0) == '-' || str.charAt(0) == '*' 
-			|| str.charAt(0) == '/' || str.charAt(0) == '(' || str.charAt(0) == ')')
+	/**	Determine if character is valid arithmetic operator including parentheses
+	 *	@param str	the character to check
+	 *	@return		true if the character is '+', '-', '*', '/', '^', '=','(', or ')'
+	 */
+	private boolean isOperator(String str){
+		if (isBinaryOperator(str.charAt(0)) || str.charAt(0) == '(' || str.charAt(0) == ')')
 			return true;
 		return false;
+	}
+	
+	/**	Determine if character is valid binary arithmetic operator excluding parentheses
+	 *	@param c	the character to check
+	 *	@return		true if the character is '+', '-', '*', '/', '^', or '='
+	 */
+	private boolean isBinaryOperator(char c) {
+		switch (c) {
+			case '+': case '-': case '*': case '/': 
+			case '%': case '=': case '^':
+				return true;
+		}
+		return false;
+	}
+	
+	/**
+	 * Executes one mathematical operation
+	 * 
+	 * @param op1 	The operand on the right side
+	 * @param op2	The operand on the left side
+	 * @param op	The operator
+	 * @return		The completed mathematical operation (sum for "+", difference for "-", etc.)
+	 */
+	private double executeOperation(double op1, double op2, String op){
+		if (op.equals("+"))
+			return op2 + op1;
+		else if (op.equals("-"))
+			return op2 - op1;
+		else if (op.equals("*"))
+			return op2 * op1;
+		else if (op.equals("/"))
+			return op2 / op1;
+		else if (op.equals("%"))
+			return op2 % op1;
+		else
+			return Math.pow(op2, op1);
 	}
 	 
 }
