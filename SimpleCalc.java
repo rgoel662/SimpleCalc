@@ -75,25 +75,23 @@ public class SimpleCalc {
 					operatorStack.push(t);
 					continue;
 				} else if (hasPrecedence(t, operatorStack.peek())){
-					if (t.equals(")"))
+					if (t.equals("(")){
 						operatorStack.push(t);
-					else if (t.equals(")")){
-						while (!operatorStack.peek().equals("(")){
+					} else if (t.equals(")")){
+						while(!operatorStack.peek().equals("(")){
 							valueStack.push(executeOperation(valueStack.pop(), valueStack.pop(), operatorStack.pop()));
 						}
 						operatorStack.pop();
-						continue;
 					} else {
-						while (!operatorStack.isEmpty() && hasPrecedence(t, operatorStack.peek()))
+						while (!operatorStack.isEmpty() && hasPrecedence(t, operatorStack.peek()) && !operatorStack.peek().equals("("))
 							valueStack.push(executeOperation(valueStack.pop(), valueStack.pop(), operatorStack.pop()));
 						operatorStack.push(t);
 					}
+					
 				} else {
 					operatorStack.push(t);
 				}
 			}
-			System.out.println(operatorStack);
-			System.out.println(valueStack);
 			if (i == tokens.size() -1){
 				while(!operatorStack.isEmpty()){
 					valueStack.push(executeOperation(valueStack.pop(), valueStack.pop(), operatorStack.pop()));
