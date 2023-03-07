@@ -1,10 +1,11 @@
 import java.util.List;		// used by expression evaluator
+import java.util.ArrayList;
 
 /**
- *	<Description goes here>
+ *	Performs simple calculator functions
  *
- *	@author	
- *	@since	
+ *	@author	Rishabh Goel
+ *	@since	3/5/23
  */
 public class SimpleCalc {
 	
@@ -12,10 +13,16 @@ public class SimpleCalc {
 	
 	private ArrayStack<Double> valueStack;		// value stack
 	private ArrayStack<String> operatorStack;	// operator stack
+	private List<String> names;		// names of all variables
+	private List<Double> vals;		// values of all variables
 
 	// constructor	
 	public SimpleCalc() {
 		utils = new ExprUtils();
+		names = new ArrayList<String>();
+		vals = new ArrayList<Double>();
+		names.add("e"); names.add("pi");
+		vals.add(Math.E); vals.add(Math.PI);
 	}
 	
 	public static void main(String[] args) {
@@ -41,6 +48,8 @@ public class SimpleCalc {
 			expr = Prompt.getString("");
 			if (expr.equals("h")){
 				printHelp();
+			} else if (expr.equals("l")){
+				printVarList();
 			} else if (!expr.equals("q")){
 				double val = evaluateExpression(utils.tokenizeExpression(expr));
 				System.out.println(val);
@@ -50,12 +59,20 @@ public class SimpleCalc {
 	
 	/**	Print help */
 	public void printHelp() {
-		System.out.println("Help:");
+		System.out.println("\nHelp:");
 		System.out.println("  h - this message\n  q - quit\n");
 		System.out.println("Expressions can contain:");
 		System.out.println("  integers or decimal numbers");
 		System.out.println("  arithmetic operators +, -, *, /, %, ^");
-		System.out.println("  parentheses '(' and ')'");
+		System.out.println("  parentheses '(' and ')'\n");
+	}
+	
+	public void printVarList(){
+		System.out.println("\nVariables:");
+		for ( int i = 0 ; i < vals.size(); i ++){
+			System.out.printf("%4s%-20s=%15.2f\n", "", names.get(i), vals.get(i));
+		}
+		System.out.println();
 	}
 	
 	/**
@@ -64,42 +81,97 @@ public class SimpleCalc {
 	 *	@return			a double value of the evaluated expression
 	 */
 	public double evaluateExpression(List<String> tokens) {
-		double value = 0;
+
+		//deal with variable assignment
+		if (tokens.size() > 1){
+			boolean isAssignment = false;
+			for (int i = 0; i < tokens.size(); i++){
+				if (tokens.get(i).equals("=") && i != 1)
+					return 0.0;
+				else if (tokens.get(i).equals("="))
+					isAssignment = true;
+			}
+			if (isAssignment){
+				for (int i = 0; i < tokens.get(0).length(); i++){
+					if (!Character.isAlphabetic(tokens.get(0).charAt(i)))
+						return 0.0;
+				}
+				if (isVariable(tokens.get(0))){
+					int idx;
+					boolean stop = false;
+					for (idx = 0; idx < names.size() && !stop; idx++){
+						if (names.get(idx).equals(tokens.get(0))){
+							stop = true;
+						}
+					}
+					idx--;
+					vals.set(idx, evaluateExpression(tokens.subList(2, tokens.size())));
+					System.out.print(tokens.get(0) + " = ");
+					return vals.get(idx);
+				} else {
+					names.add(tokens.get(0));
+					System.out.print(tokens.get(0) + " = ");
+					vals.add(evaluateExpression(tokens.subList(2, tokens.size())));
+					return vals.get(vals.size() - 1);
+				}
+			}
+		}
+
 		for (int i = 0; i < tokens.size(); i ++){
 			String t = tokens.get(i);
-			if (t.charAt(0) >= '0' && t.charAt(0) <= '9'){
-				valueStack.push(Double.parseDouble(t));
-			}
+
+			//always push operand
+			if (Character.isDigit(t.charAt(0)) || isVariable(t)){
+				if (isVariable(t)){
+					int idx;
+					boolean stop = false;
+					for (idx = 0; idx < names.size() && !stop; idx++){
+						if (names.get(idx).equals(t)){
+							stop = true;
+						}
+					}
+					idx--;
+					valueStack.push(vals.get(idx));
+				} else 
+					valueStack.push(Double.parseDouble(t));
+			} else if (!isOperator(t))
+				valueStack.push(0.0);
+			
 			if (isOperator(t)){
+				
+				//always push first operator
 				if (operatorStack.isEmpty()){
 					operatorStack.push(t);
 					continue;
 				} else if (hasPrecedence(t, operatorStack.peek())){
+					
+					//always push left parenthesis
 					if (t.equals("(")){
 						operatorStack.push(t);
-					} else if (t.equals(")")){
+					} else if (t.equals(")")){ //evaluate all ops until left parenthesis
 						while(!operatorStack.peek().equals("(")){
 							valueStack.push(executeOperation(valueStack.pop(), valueStack.pop(), operatorStack.pop()));
 						}
 						operatorStack.pop();
-					} else {
+					} else { //evaluate all ops until you reach an operator that has higher / same precedence
 						while (!operatorStack.isEmpty() && hasPrecedence(t, operatorStack.peek()) && !operatorStack.peek().equals("("))
 							valueStack.push(executeOperation(valueStack.pop(), valueStack.pop(), operatorStack.pop()));
 						operatorStack.push(t);
 					}
 					
-				} else {
+				} else { // if it has higher precedence, just push it
 					operatorStack.push(t);
 				}
 			}
+			
+			// if at the end, evaluate all values/operators left
 			if (i == tokens.size() -1){
 				while(!operatorStack.isEmpty()){
 					valueStack.push(executeOperation(valueStack.pop(), valueStack.pop(), operatorStack.pop()));
 				}
 			}
 		}
-		value = valueStack.peek();
-		return value;
+		return valueStack.peek();
 	}
 	
 	/**
@@ -167,6 +239,14 @@ public class SimpleCalc {
 			return op2 % op1;
 		else
 			return Math.pow(op2, op1);
+	}
+
+	private boolean isVariable(String str){
+		for (int i = 0; i < names.size(); i ++){
+			if (str.equals(names.get(i)))
+				return true;
+		}
+		return false;
 	}
 	 
 }
